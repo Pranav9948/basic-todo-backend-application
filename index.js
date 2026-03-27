@@ -29,8 +29,33 @@ app.post('/todos', async (req, res) => {
 });
 
 app.get('/todos', async (req, res) => {
-  const todos = await pool.query('SELECT * FROM todos');
-  res.json(todos.rows);
+  try {
+    const { search, completed } = req.query;
+
+    let query = 'SELECT * FROM todos WHERE 1=1';
+    const values = [];
+
+    // 🔍 Search filter
+    if (search) {
+      values.push(`%${search}%`);
+      query += ` AND title ILIKE $${values.length}`;
+    }
+
+    // ✅ Completed filter
+    if (completed !== undefined) {
+      values.push(completed === 'true');
+      query += ` AND completed = $${values.length}`;
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const todos = await pool.query(query, values);
+
+    res.json(todos.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 app.put('/todos/:id', async (req, res) => {
